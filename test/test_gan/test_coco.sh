@@ -6,4 +6,5 @@ CUDA_VISIBLE_DEVICES="0" python test_worker.py \
                                 --load_from_epoch 200 \
                                 --test_sample_num 1 \
                                 --batch_size 8 \
+                                --save_visual_results 
 
