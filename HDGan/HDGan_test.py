@@ -77,7 +77,7 @@ def test_gans(dataset, model_root, mode_name, save_root , netG,  args):
         while True:
             if start_count >= num_examples:
                 break
-            test_images, test_embeddings_list, test_captions, saveIDs, classIDs = test_sampler()
+            test_images, test_embeddings_list, test_captions, test_filenames, saveIDs, classIDs = test_sampler()
             
             this_batch_size =  test_images.shape[0]
             chosen_captions = []
@@ -143,7 +143,7 @@ def test_gans(dataset, model_root, mode_name, save_root , netG,  args):
                     data_count[typ] = start + bs
             
             if args.save_visual_results:
-                save_super_images(vis_samples, chosen_captions, this_batch_size, save_folder, saveIDs, classIDs)
+                save_super_images(vis_samples, chosen_captions, this_batch_size, test_filenames, save_folder, saveIDs, classIDs)
 
             print('saved files [sample {}/{}]: '.format(start_count, num_examples), data_count)  
             
@@ -178,9 +178,10 @@ def drawCaption(img, caption, level=['output 64', 'output 128', 'output 256']):
 
     return img_txt
 
-def save_super_images(vis_samples, captions_batch, batch_size, save_folder, saveIDs, classIDs, max_sample_num=8, save_single_img=True):
+def save_super_images(vis_samples, captions_batch, batch_size, filenames, save_folder, saveIDs, classIDs, max_sample_num=8, save_single_img=True):
     save_folder_caption = os.path.join(save_folder, 'with_captions')
     save_folder_images  = os.path.join(save_folder, 'images')
+    mkdirs([save_folder_caption, save_folder_images])
     
     dst_shape = (0,0)
     all_row = []
@@ -194,6 +195,7 @@ def save_super_images(vis_samples, captions_batch, batch_size, save_folder, save
     valid_caption = []
     valid_IDS = []
     valid_classIDS = []
+    valid_filenames = []
     for j in range(batch_size):
         if not re.search('[a-zA-Z]+', captions_batch[j]):
             print("Not valid caption? :",  captions_batch[j])
@@ -202,8 +204,11 @@ def save_super_images(vis_samples, captions_batch, batch_size, save_folder, save
             valid_caption.append(captions_batch[j])
             valid_IDS.append(saveIDs[j])
             valid_classIDS.append(classIDs[j])
+            valid_filenames.append(filenames[j])
 
     for typ, img_list in vis_samples.items(): 
+        if not (typ == 'output_256'):
+            continue
         img_tensor = np.stack(img_list, 1) # N * T * 3 *row*col
         img_tensor = img_tensor.transpose(0,1,3,4,2)
         img_tensor = (img_tensor + 1.0) * 127.5
@@ -215,16 +220,18 @@ def save_super_images(vis_samples, captions_batch, batch_size, save_folder, save
         #imshow(img_tensor[0,0])
         batch_all = []
         for bidx in range(batch_size):
-            if save_single_img:
-                this_folder_id = os.path.join(save_folder_images, '{}_{}'.format(valid_classIDS[bidx], valid_IDS[bidx]))
-                mkdirs([this_folder_id])
+            # if save_single_img:
+            #     this_folder_id = os.path.join(save_folder_images, '{}_{}'.format(valid_classIDS[bidx], valid_IDS[bidx]))
+            #     mkdirs([this_folder_id])
 
-            if not re.search('[a-zA-Z]+', captions_batch[j]):
+            if not re.search('[a-zA-Z]+', captions_batch[bidx]):
                 continue
             padding = np.zeros(dst_shape + (3,), dtype=np.uint8)
             this_row = [padding]
             # First row with up to 8 samples
             for tidx in range(img_tensor.shape[1]):
+                if tidx != 1:
+                    continue
                 this_img  = img_tensor[bidx][tidx]
                 
                 re_sample = imresize_shape(this_img, dst_shape)
@@ -235,30 +242,32 @@ def save_super_images(vis_samples, captions_batch, batch_size, save_folder, save
 
                 ## TODO to save space, do we not save single image here. You can do that if you want
                 if save_single_img:
-                    scipy.misc.imsave(os.path.join(this_folder_id, '{}_copy_{}.jpg'.format(typ, tidx)),  re_sample)
+                    output_path = os.path.join(save_folder_images, filenames[bidx])
+                    # scipy.misc.imsave(os.path.join(this_folder_id, '{}_copy_{}.jpg'.format(typ, tidx)),  re_sample)
+                    scipy.misc.imsave(output_path,  re_sample)
                 
-            this_row = np.concatenate(this_row, axis=1) # row, col*T, 3
-            batch_all.append(this_row)
-        batch_all = np.stack(batch_all, 0) # bs*row*colT*3 
-        all_row.append(batch_all)
+    #         this_row = np.concatenate(this_row, axis=1) # row, col*T, 3
+    #         batch_all.append(this_row)
+    #     batch_all = np.stack(batch_all, 0) # bs*row*colT*3 
+    #     all_row.append(batch_all)
 
-    all_row = np.stack(all_row, 0) # n_type * bs * shape    
+    # all_row = np.stack(all_row, 0) # n_type * bs * shape    
     
-    batch_size = len(valid_IDS) 
+    # batch_size = len(valid_IDS) 
     
-    mkdirs([save_folder_caption, save_folder_images])
-    for idx in range(batch_size):
-        this_select = all_row[:, idx] # ntype*row*col
+    # # mkdirs([save_folder_caption, save_folder_images])
+    # for idx in range(batch_size):
+    #     this_select = all_row[:, idx] # ntype*row*col
         
-        ntype, row, col, chn = this_select.shape
-        superimage = np.reshape(this_select, (-1, col, chn) )  # big_row, col, 3
+    #     ntype, row, col, chn = this_select.shape
+    #     superimage = np.reshape(this_select, (-1, col, chn) )  # big_row, col, 3
 
-        top_padding = np.zeros((128, superimage.shape[1], 3))
-        superimage =\
-            np.concatenate([top_padding, superimage], axis=0)
+    #     top_padding = np.zeros((128, superimage.shape[1], 3))
+    #     superimage =\
+    #         np.concatenate([top_padding, superimage], axis=0)
             
-        save_path = os.path.join(save_folder_caption, '{}_{}.png'.format(valid_classIDS[idx], valid_IDS[idx]) )    
-        superimage = drawCaption(np.uint8(superimage), valid_caption[idx], level)
-        scipy.misc.imsave(save_path, superimage)
+    #     save_path = os.path.join(save_folder_caption, '{}_{}.png'.format(valid_classIDS[idx], valid_IDS[idx]) )    
+    #     superimage = drawCaption(np.uint8(superimage), valid_caption[idx], level)
+    #     scipy.misc.imsave(save_path, superimage)
 
 

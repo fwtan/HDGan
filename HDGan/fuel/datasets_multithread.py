@@ -85,6 +85,11 @@ class Dataset(object):
             # print('read {} captions '.format(len(self.captions)))
         
         self._num_examples = len(self.filenames)
+
+        # for key, val in self.captions.items():
+        #     print(len(val))
+
+        # print(self.filenames[0])
         
     def readCaptions(self, filename):
         cap = self.captions[filename]
@@ -177,7 +182,6 @@ class Dataset(object):
                                     filenames, self.n_embed)
         ret_list.append(sampled_embeddings)
         ret_list.append(sampled_captions)
-
         ret_list.append(filenames)
 
         return ret_list
@@ -214,7 +218,7 @@ class Dataset(object):
             batch = sampled_embeddings[:, i, :]
             sampled_embeddings_batchs.append(batch)
 
-        return [sampled_images, sampled_embeddings_batchs, sampled_captions, self._saveIDs[start:end], self._classIDs[start:end]]
+        return [sampled_images, sampled_embeddings_batchs, sampled_captions, sampled_filenames, self._saveIDs[start:end], self._classIDs[start:end]]
 
     def __len__(self):
         return self._num_examples

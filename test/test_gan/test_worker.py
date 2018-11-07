@@ -66,7 +66,8 @@ if  __name__ == '__main__':
     model_name = args.model_name  
     
     save_folder  = os.path.join(save_root, args.dataset, model_name + '_testing_num_{}'.format(args.test_sample_num) )
-    mkdirs(save_folder)
+    if not os.path.exists(save_folder):
+        mkdirs(save_folder)
     
     test_gans(dataset, model_root, model_name, save_folder, netG, args)
 
